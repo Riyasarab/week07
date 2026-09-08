@@ -1,12 +1,11 @@
 name: CI Pipeline
 
-# Task 7.1P CI pipeline trigger
+# Task 7.2C CI pipeline trigger
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-
 
 jobs:
 
@@ -79,9 +78,9 @@ jobs:
       AZURE_STORAGE_CONTAINER_NAME: ""
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v6
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -100,15 +99,50 @@ jobs:
 
 
   # =========================================================
+  # Frontend Tests
+  # =========================================================
+  frontend-test:
+    name: Test frontend
+    runs-on: ubuntu-latest
+
+    env:
+      VITE_USER_SERVICE_URL: /api/user-service
+      VITE_STUDENT_SERVICE_URL: /api/student-service
+      VITE_LECTURER_SERVICE_URL: /api/lecturer-service
+      VITE_COURSE_SERVICE_URL: /api/course-service
+      VITE_ENROLLMENT_SERVICE_URL: /api/enrollment-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm run test:run
+
+
+  # =========================================================
   # Build and Push Docker Images
   # =========================================================
   build-and-push:
     name: Build and Push ${{ matrix.image }}
     runs-on: ubuntu-latest
 
-    # All backend tests must pass before this job starts
+    # Backend and frontend tests must pass before this job starts
     needs:
       - backend-test
+      - frontend-test
 
     # Build and push when code is pushed to main or manually triggered
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -137,9 +171,9 @@ jobs:
             image: koalatech-enrollment-service
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v6
+
       - name: Login to Azure
         uses: azure/login@v3
         with:
